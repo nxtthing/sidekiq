@@ -55,6 +55,8 @@
     </thead>
     <% lead = processes.leader %>
     <% processes.each do |process| %>
+      <% idle_time = Sidekiq.redis { |c| c.call([:object, :idletime, process["identity"]]) } %>
+      <% dead = idle_time > Sidekiq::Launcher::BEAT_PAUSE * 3 %>
       <tr>
         <td class="box">
           <%= "#{process['hostname']}:#{process['pid']}" %>
@@ -72,7 +74,12 @@
           <b><%= "#{t('Queues')}: " %></b>
           <%= process.queues.join(", ") %>
         </td>
-        <td><%= relative_time(Time.at(process['started_at'])) %></td>
+        <td>
+          <%= relative_time(Time.at(process['started_at'])) %>
+          <% if dead %>
+            <span class="label label-danger">DEAD</span>
+          <% end %>
+        </td>
         <td><%= format_memory(process['rss'].to_i) %></td>
         <td><%= process['concurrency'] %></td>
         <td><%= process['busy'] %></td>
@@ -84,6 +91,7 @@
             <div class="btn-group pull-right flip">
               <% unless process.stopping? %><button class="btn btn-xs btn-warn" type="submit" name="quiet" value="1"><%= t('Quiet') %></button><% end %>
               <button class="btn btn-xs btn-danger" type="submit" name="stop" value="1"><%= t('Stop') %></button>
+              <% if dead %><button class="btn btn-xs btn-danger" type="submit" name="clean" value="1"><%= t('Clean') %></button><% end %>
             </div>
           </form>
         </td>
@@ -125,7 +133,16 @@
         <td>
           <div class="args"><%= display_args(job.display_args) %></div>
         </td>
-        <td><%= relative_time(Time.at(msg['run_at'])) %></td>
+        <td>
+          <%= relative_time(Time.at(msg['run_at'])) %>
+          <% idle_time = Sidekiq.redis { |c| c.call([:object, :idletime, "#{process}:workers"]) } %>
+          <% if idle_time > Sidekiq::Launcher::BEAT_PAUSE * 3 %>
+            <div class="title">
+              Process stopped:
+              <%= relative_time((idle_time - Sidekiq::Launcher::BEAT_PAUSE).seconds.ago) %>
+            </div>
+          <% end %>
+        </td>
       </tr>
     <% end %>
   </table>

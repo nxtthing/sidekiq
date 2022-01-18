@@ -903,6 +903,16 @@ module Sidekiq
       signal("TSTP")
     end
 
+    def clean!
+      Sidekiq.redis do |c|
+        c.multi do
+          c.del(identity)
+          c.del("#{identity}:workers")
+        end
+      end
+      ProcessSet.new(false).cleanup
+    end
+
     def stop!
       signal("TERM")
     end

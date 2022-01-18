@@ -151,7 +151,7 @@ module Sidekiq
             curstate.each_pair do |tid, hash|
               conn.hset(workers_key, tid, Sidekiq.dump_json(hash))
             end
-            conn.expire(workers_key, 60)
+            conn.expire(workers_key, ENV["SIDEKIQ_HEARTBEAT_STATS_EXPIRATION_IN_SECONDS"] || 60)
           end
         end
 
@@ -170,7 +170,7 @@ module Sidekiq
               "rtt_us", rtt,
               "quiet", @done,
               "rss", kb)
-            conn.expire(key, 60)
+            conn.expire(key, ENV["SIDEKIQ_HEARTBEAT_STATS_EXPIRATION_IN_SECONDS"] || 60)
             conn.rpop("#{key}-signals")
           }
         }
