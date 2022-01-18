@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "sidekiq/launcher"
 
 module Sidekiq
   class WebApplication
@@ -69,6 +70,9 @@ module Sidekiq
         p = Sidekiq::Process.new("identity" => params["identity"])
         p.quiet! if params["quiet"]
         p.stop! if params["stop"]
+        p.clean! if params["clean"]
+        p.requeue! if params["requeue"]
+        p.requeue_and_clean! if params["requeue_and_clean"]
       else
         processes.each do |pro|
           pro.quiet! if params["quiet"]

@@ -909,6 +909,34 @@ module Sidekiq
       signal("TSTP")
     end
 
+    def clean!
+      Sidekiq.redis do |c|
+        c.multi do |transaction|
+          transaction.del(identity)
+          transaction.del("#{identity}:workers")
+        end
+      end
+      ProcessSet.new(false).cleanup
+    end
+
+    def requeue!
+      workers = Sidekiq.redis do |c|
+        c.multi do |transaction|
+          transaction.hgetall("#{identity}:workers")
+        end
+      end.values.map do |json|
+        hash = JSON.parse(json)
+        Sidekiq::BasicFetch::UnitOfWork.new(hash["queue"], hash["payload"])
+      end
+
+      Sidekiq::BasicFetch.new(Sidekiq.options).bulk_requeue(workers, {})
+    end
+
+    def requeue_and_clean!
+      requeue!
+      clean!
+    end
+
     def stop!
       signal("TERM")
     end
