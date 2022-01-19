@@ -55,7 +55,7 @@
     </thead>
     <% lead = processes.leader %>
     <% processes.each do |process| %>
-      <% idle_time = Sidekiq.redis { |c| c.call([:object, :idletime, process["identity"]]) } %>
+      <% idle_time = Sidekiq.redis { |c| c.object(:idletime, process["identity"]) } %>
       <% dead = idle_time > Sidekiq::Launcher::BEAT_PAUSE * 3 %>
       <tr>
         <td class="box">
@@ -135,7 +135,7 @@
         </td>
         <td>
           <%= relative_time(Time.at(msg['run_at'])) %>
-          <% idle_time = Sidekiq.redis { |c| c.call([:object, :idletime, "#{process}:workers"]) } %>
+          <% idle_time = Sidekiq.redis { |c| c.object(:idletime, "#{process}:workers") } %>
           <% if idle_time > Sidekiq::Launcher::BEAT_PAUSE * 3 %>
             <div class="title">
               Process stopped:
