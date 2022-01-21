@@ -75,6 +75,8 @@ en: # <---- change this to your locale code
   Stop: Stop
   Quiet: Quiet
   Clean: Clean
+  Requeue: Requeue
+  RequeueAndClean: Requeue and clean
   StopAll: Stop All
   QuietAll: Quiet All
   PollingInterval: Polling interval

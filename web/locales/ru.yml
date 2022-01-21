@@ -71,6 +71,8 @@ ru:
   Stop: Остановить
   Quiet: Отдыхать
   Clean: Очистить
+  Requeue: Повторить работы
+  RequeueAndClean: Повторить и Очистить
   StopAll: Остановить все
   QuietAll: Отдыхать всем
   PollingInterval: Интервал опроса

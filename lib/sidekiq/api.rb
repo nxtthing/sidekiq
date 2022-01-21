@@ -913,6 +913,20 @@ module Sidekiq
       ProcessSet.new(false).cleanup
     end
 
+    def requeue!
+      workers = Sidekiq.redis { |c| c.hgetall("#{identity}:workers") }.values.map do |json|
+        hash = JSON.parse(json)
+        Sidekiq::BasicFetch::UnitOfWork.new(hash["queue"], hash["payload"])
+      end
+
+      Sidekiq::BasicFetch.new(Sidekiq.options).bulk_requeue(workers, {})
+    end
+
+    def requeue_and_clean!
+      requeue!
+      clean!
+    end
+
     def stop!
       signal("TERM")
     end
