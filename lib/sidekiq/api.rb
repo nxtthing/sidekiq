@@ -924,7 +924,7 @@ module Sidekiq
         c.multi do |transaction|
           transaction.hgetall("#{identity}:workers")
         end
-      end.values.map do |json|
+      end.map(&:values).flatten.map do |json|
         hash = JSON.parse(json)
         Sidekiq::BasicFetch::UnitOfWork.new(hash["queue"], hash["payload"])
       end
