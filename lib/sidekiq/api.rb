@@ -922,11 +922,11 @@ module Sidekiq
     def requeue!
       workers = Sidekiq.redis do |c|
         c.multi do |transaction|
-          transaction.hgetall("#{identity}:workers")
+          transaction.hgetall("#{identity}:work")
         end
       end.map(&:values).flatten.map do |json|
         hash = JSON.parse(json)
-        Sidekiq::BasicFetch::UnitOfWork.new(hash["queue"], hash["payload"])
+        Sidekiq::BasicFetch::UnitOfWork.new("queue:#{hash['queue']}", hash["payload"])
       end
 
       Sidekiq::BasicFetch.new(Sidekiq.options).bulk_requeue(workers, {})
