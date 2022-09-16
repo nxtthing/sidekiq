@@ -3,6 +3,69 @@
 [Sidekiq Changes](https://github.com/mperham/sidekiq/blob/main/Changes.md) | [Sidekiq Pro Changes](https://github.com/mperham/sidekiq/blob/main/Pro-Changes.md) | [Sidekiq Enterprise Changes](https://github.com/mperham/sidekiq/blob/main/Ent-Changes.md)
 
 HEAD
+----------
+
+- Further optimizations for scheduled polling [#5513]
+
+6.5.6
+----------
+
+- Fix deprecation warnings with redis-rb 4.8.0 [#5484]
+- Lock redis-rb to < 5.0 as we are moving to redis-client in Sidekiq 7.0
+
+6.5.5
+----------
+
+- Fix require issue with job_retry.rb [#5462]
+- Improve Sidekiq::Web compatibility with Rack 3.x
+
+6.5.4
+----------
+
+- Fix invalid code on Ruby 2.5 [#5460]
+- Fix further metrics dependency issues [#5457]
+
+6.5.3
+----------
+
+- Don't require metrics code without explicit opt-in [#5456]
+
+6.5.2
+----------
+
+- [Job Metrics are under active development, help wanted!](https://github.com/mperham/sidekiq/wiki/Metrics#contributing) **BETA**
+- Add `Context` column on queue page which shows any CurrentAttributes [#5450]
+- `sidekiq_retry_in` may now return `:discard` or `:kill` to dynamically stop job retries [#5406]
+- Smarter sorting of processes in /busy Web UI [#5398]
+- Fix broken hamburger menu in mobile UI [#5428]
+- Require redis-rb 4.5.0. Note that Sidekiq will break if you use the
+  [`Redis.exists_returns_integer = false`](https://github.com/redis/redis-rb/blob/master/CHANGELOG.md#450) flag. [#5394]
+
+6.5.1
+----------
+
+- Fix `push_bulk` breakage [#5387]
+
+6.5.0
+---------
+
+- Substantial refactoring of Sidekiq server internals, part of a larger effort
+  to reduce Sidekiq's internal usage of global methods and data, see [docs/global_to_local.md](docs/global_to_local.md) and [docs/middleware.md](docs/middleware.md).
+- **Add beta support for the `redis-client` gem**. This will become the default Redis driver in Sidekiq 7.0. [#5298]
+  Read more: https://github.com/mperham/sidekiq/wiki/Using-redis-client
+- **Add beta support for DB transaction-aware client** [#5291]
+  Add this line to your initializer and any jobs created during a transaction
+  will only be pushed to Redis **after the transaction commits**. You will need to add the
+  `after_commit_everywhere` gem to your Gemfile.
+```ruby
+Sidekiq.transactional_push!
+```
+  This feature does not have a lot of production usage yet; please try it out and let us
+  know if you have any issues. It will be fully supported in Sidekiq 7.0 or removed if it
+  proves problematic.
+- Fix regression with middleware arguments [#5312]
+
+6.4.2
 ---------
 
 - Strict argument checking now runs after client-side middleware [#5246]

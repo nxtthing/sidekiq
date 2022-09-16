@@ -66,7 +66,7 @@ bundle install
 redis-server
 ```
 
-#### 7. Navivate to myapp (small Rails app inside Sidekiq repository used for development)
+#### 7. Navigate to myapp (small Rails app inside Sidekiq repository used for development)
 
 ```
 cd myapp/
@@ -88,6 +88,11 @@ rails s
 
 ```
 git checkout -b new_feature_name
+```
+
+### 11. Keep your forked branch up to date with changes in main repo
+```
+git pull upstream main
 ```
 
 ## Legal

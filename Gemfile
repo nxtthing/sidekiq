@@ -3,10 +3,13 @@ source "https://rubygems.org"
 gemspec
 
 gem "rake"
+gem "redis"
 gem "redis-namespace"
+gem "redis-client"
 gem "rails", "~> 6.0"
 gem "sqlite3", platforms: :ruby
 gem "activerecord-jdbcsqlite3-adapter", platforms: :jruby
+gem "after_commit_everywhere"
 
 # mail dependencies
 gem "net-smtp", platforms: :mri, require: false

@@ -20,9 +20,10 @@ describe Sidekiq::Scheduled do
       @future_2 = {"class" => ScheduledWorker.name, "args" => [4], "queue" => "queue_5"}
       @future_3 = {"class" => ScheduledWorker.name, "args" => [5], "queue" => "queue_6"}
 
+      @config = Sidekiq
       @retry = Sidekiq::RetrySet.new
       @scheduled = Sidekiq::ScheduledSet.new
-      @poller = Sidekiq::Scheduled::Poller.new
+      @poller = Sidekiq::Scheduled::Poller.new(@config)
     end
 
     class MyStopper
@@ -105,11 +106,11 @@ describe Sidekiq::Scheduled do
     end
 
     def with_sidekiq_option(name, value)
-      _original, Sidekiq.options[name] = Sidekiq.options[name], value
+      original, Sidekiq[name] = Sidekiq[name], value
       begin
         yield
       ensure
-        Sidekiq.options[name] = _original
+        Sidekiq[name] = original
       end
     end
 
@@ -124,16 +125,35 @@ describe Sidekiq::Scheduled do
       end
     end
 
-    it "calculates an average poll interval based on the number of known Sidekiq processes" do
+    it "generates random intervals based on the number of known Sidekiq processes" do
       with_sidekiq_option(:average_scheduled_poll_interval, 10) do
-        3.times do |i|
+        intervals_count = 500
+
+        # Start with 10 processes
+        10.times do |i|
           Sidekiq.redis do |conn|
-            conn.sadd("processes", "process-#{i}")
-            conn.hset("process-#{i}", "info", nil)
+            conn.sadd("processes", ["process-#{i}"])
           end
         end
 
-        assert_equal 30, @poller.send(:scaled_poll_interval)
+        intervals = Array.new(intervals_count) { @poller.send(:random_poll_interval) }
+        assert intervals.all? { |x| x.between?(0, 100) }
+
+        # Reduce to 3 processes
+        (3..9).each do |i|
+          Sidekiq.redis do |conn|
+            conn.srem("processes", ["process-#{i}"])
+          end
+        end
+
+        intervals = Array.new(intervals_count) { @poller.send(:random_poll_interval) }
+        assert intervals.all? { |x| x.between?(15, 45) }
+      end
+    end
+
+    it "calculates an average poll interval based on a given number of processes" do
+      with_sidekiq_option(:average_scheduled_poll_interval, 10) do
+        assert_equal 30, @poller.send(:scaled_poll_interval, 3)
       end
     end
   end

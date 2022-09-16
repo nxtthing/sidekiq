@@ -4,6 +4,24 @@
 
 Please see [sidekiq.org](https://sidekiq.org) for more details and how to buy.
 
+2.5.2
+---------
+
+- Remove Redis 4.8.0 deprecation warnings
+
+2.5.1
+-------------
+
+- Fix crash with empty periodic data [#5374]
+
+2.5.0
+-------------
+
+- Per the 2.0 upgrade notes, Sidekiq Enterprise will stop if you do not have valid
+  credentials configured on startup.
+- Internal refactoring for Sidekiq 6.5.
+- Requires Sidekiq 6.5, Pro 5.5.
+
 2.3.1
 -------------
 

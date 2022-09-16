@@ -11,10 +11,9 @@ describe Sidekiq::Processor do
 
   before do
     $invokes = 0
-    @mgr = Minitest::Mock.new
-    opts = {queues: ["default"]}
-    opts[:fetch] = Sidekiq::BasicFetch.new(opts)
-    @processor = ::Sidekiq::Processor.new(@mgr, opts)
+    @config = Sidekiq
+    @config[:fetch] = Sidekiq::BasicFetch.new(@config)
+    @processor = ::Sidekiq::Processor.new(@config) { |*args| }
   end
 
   class MockWorker
@@ -60,7 +59,6 @@ describe Sidekiq::Processor do
   it "does not modify original arguments" do
     msg = {"class" => MockWorker.to_s, "args" => [["myarg"]]}
     msgstr = Sidekiq.dump_json(msg)
-    @mgr.expect(:processor_done, nil, [@processor])
     @processor.process(work(msgstr))
     assert_equal [["myarg"]], msg["args"]
   end
@@ -108,7 +106,6 @@ describe Sidekiq::Processor do
       end
       assert_equal 1, errors.count
       assert_instance_of TestProcessorException, errors.first[:exception]
-      assert_equal msg, errors.first[:context][:jobstr]
       assert_equal job_hash["jid"], errors.first[:context][:job]["jid"]
     end
 
@@ -124,7 +121,6 @@ describe Sidekiq::Processor do
       end
       assert_equal 1, errors.count
       assert_instance_of TestProcessorException, errors.first[:exception]
-      assert_equal msg, errors.first[:context][:jobstr]
       assert_equal job_hash, errors.first[:context][:job]
     end
 
@@ -208,7 +204,6 @@ describe Sidekiq::Processor do
 
       it "acks the job" do
         work.expect(:acknowledge, nil)
-        @mgr.expect(:processor_done, nil, [@processor])
         @processor.process(work)
       end
     end
@@ -229,7 +224,6 @@ describe Sidekiq::Processor do
     describe "everything goes well" do
       it "acks the job" do
         work.expect(:acknowledge, nil)
-        @mgr.expect(:processor_done, nil, [@processor])
         @processor.process(work)
       end
     end
@@ -282,7 +276,7 @@ describe Sidekiq::Processor do
           assert_equal "boom", msg["args"].first
         }
 
-        @processor.instance_variable_get(:@retrier).stub(:attempt_retry, retry_stub) do
+        @processor.instance_variable_get(:@retrier).stub(:process_retry, retry_stub) do
           msg = Sidekiq.dump_json(job_data)
           begin
             @processor.process(work(msg))
@@ -296,67 +290,20 @@ describe Sidekiq::Processor do
     end
   end
 
-  describe "stats" do
-    before do
-      Sidekiq.redis { |c| c.flushdb }
-    end
-
-    describe "when successful" do
-      let(:processed_today_key) { "stat:processed:#{Time.now.utc.strftime("%Y-%m-%d")}" }
-
-      def successful_job
-        msg = Sidekiq.dump_json({"class" => MockWorker.to_s, "args" => ["myarg"]})
-        @mgr.expect(:processor_done, nil, [@processor])
-        @processor.process(work(msg))
-      end
-
-      it "increments processed stat" do
-        Sidekiq::Processor::PROCESSED.reset
-        successful_job
-        assert_equal 1, Sidekiq::Processor::PROCESSED.reset
-      end
-    end
-
-    describe "custom job logger class" do
-      class CustomJobLogger < Sidekiq::JobLogger
-        def call(item, queue)
-          yield
-        rescue Exception
-          raise
-        end
-      end
-
-      before do
-        opts = {queues: ["default"], job_logger: CustomJobLogger}
-        @mgr = Minitest::Mock.new
-        @processor = ::Sidekiq::Processor.new(@mgr, opts)
-      end
-    end
-  end
-
-  describe "stats" do
-    before do
-      Sidekiq.redis { |c| c.flushdb }
-    end
-
-    def successful_job
-      msg = Sidekiq.dump_json({"class" => MockWorker.to_s, "args" => ["myarg"]})
-      @mgr.expect(:processor_done, nil, [@processor])
-      @processor.process(work(msg))
-    end
-
-    it "increments processed stat" do
-      Sidekiq::Processor::PROCESSED.reset
-      successful_job
-      assert_equal 1, Sidekiq::Processor::PROCESSED.reset
-    end
-  end
-
   describe "custom job logger class" do
+    class CustomJobLogger < Sidekiq::JobLogger
+      def call(item, queue)
+        yield
+      rescue Exception
+        raise
+      end
+    end
+
     before do
-      opts = {queues: ["default"], job_logger: CustomJobLogger}
+      opts = Sidekiq
+      opts[:job_logger] = CustomJobLogger
       opts[:fetch] = Sidekiq::BasicFetch.new(opts)
-      @processor = ::Sidekiq::Processor.new(nil, opts)
+      @processor = ::Sidekiq::Processor.new(opts) { |pr, ex| }
     end
 
     it "is called instead default Sidekiq::JobLogger" do

@@ -33,6 +33,10 @@ module Sidekiq
       "Dead" => "morgue"
     }
 
+    if ENV["SIDEKIQ_METRICS_BETA"] == "1"
+      DEFAULT_TABS["Metrics"] = "metrics"
+    end
+
     class << self
       def settings
         self
@@ -144,7 +148,7 @@ module Sidekiq
       m = middlewares
 
       rules = []
-      rules = [[:all, {"Cache-Control" => "public, max-age=86400"}]] unless ENV["SIDEKIQ_WEB_TESTING"]
+      rules = [[:all, {"cache-control" => "public, max-age=86400"}]] unless ENV["SIDEKIQ_WEB_TESTING"]
 
       ::Rack::Builder.new do
         use Rack::Static, urls: ["/stylesheets", "/images", "/javascripts"],

@@ -55,7 +55,7 @@
       <th>&nbsp;</th>
     </thead>
     <% lead = processes.leader %>
-    <% processes.each do |process| %>
+    <% sorted_processes.each do |process| %>
       <% last_beat_at = Time.at(process['beat']) %>
       <% dead_processes[process['identity']] = dead = ((Time.now - last_beat_at) / 1.minute) > Sidekiq::Launcher::BEAT_PAUSE * 3 %>
       <tr>

@@ -15,22 +15,28 @@ module Sidekiq
   #
   module CurrentAttributes
     class Save
+      include Sidekiq::ClientMiddleware
+
       def initialize(cattr)
         @klass = cattr
       end
 
       def call(_, job, _, _)
         attrs = @klass.attributes
-        if job.has_key?("cattr")
-          job["cattr"].merge!(attrs)
-        else
-          job["cattr"] = attrs
+        if attrs.any?
+          if job.has_key?("cattr")
+            job["cattr"].merge!(attrs)
+          else
+            job["cattr"] = attrs
+          end
         end
         yield
       end
     end
 
     class Load
+      include Sidekiq::ServerMiddleware
+
       def initialize(cattr)
         @klass = cattr
       end

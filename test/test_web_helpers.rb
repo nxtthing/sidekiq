@@ -3,7 +3,11 @@
 require_relative "helper"
 require "sidekiq/web"
 
-class TestWebHelpers < Minitest::Test
+describe "Web helpers" do
+  before do
+    Sidekiq.redis { |c| c.flushdb }
+  end
+
   class Helpers
     include Sidekiq::WebHelpers
 
@@ -33,7 +37,7 @@ class TestWebHelpers < Minitest::Test
     end
   end
 
-  def test_locale_determination
+  it "tests locale determination" do
     obj = Helpers.new
     assert_equal "en", obj.locale
 
@@ -89,7 +93,7 @@ class TestWebHelpers < Minitest::Test
     assert_equal "en", obj.locale
   end
 
-  def test_available_locales
+  it "tests available locales" do
     obj = Helpers.new
     expected = %w[
       ar cs da de el en es fa fr he hi it ja
@@ -99,24 +103,24 @@ class TestWebHelpers < Minitest::Test
     assert_equal expected, obj.available_locales.sort
   end
 
-  def test_display_illegal_args
-    o = Helpers.new
-    s = o.display_args([1, 2, 3])
+  it "tests displaying of illegal args" do
+    obj = Helpers.new
+    s = obj.display_args([1, 2, 3])
     assert_equal "1, 2, 3", s
-    s = o.display_args(["<html>", 12])
+    s = obj.display_args(["<html>", 12])
     assert_equal "&quot;&lt;html&gt;&quot;, 12", s
-    s = o.display_args("<html>")
+    s = obj.display_args("<html>")
     assert_equal "Invalid job payload, args must be an Array, not String", s
-    s = o.display_args(nil)
+    s = obj.display_args(nil)
     assert_equal "Invalid job payload, args is nil", s
   end
 
-  def test_to_query_string_escapes_bad_query_input
+  it "query string escapes bad query input" do
     obj = Helpers.new
     assert_equal "page=B%3CH", obj.to_query_string("page" => "B<H")
   end
 
-  def test_qparams_string_escapes_bad_query_input
+  it "qparams string escapes bad query input" do
     obj = Helpers.new
     obj.instance_eval do
       def params
@@ -124,5 +128,22 @@ class TestWebHelpers < Minitest::Test
       end
     end
     assert_equal "direction=H%3EB&page=B%3CH", obj.qparams("page" => "B<H")
+  end
+
+  it "sorts processes using the natural sort order" do
+    ["a.10.2", "a.2", "busybee--10_1", "a.23", "a.10.1", "a.1", "192.168.0.10", "192.168.0.2", "2.1.1.1", "busybee-2__34"].each do |hostname|
+      pdata = {"hostname" => hostname, "pid" => "123", "started_at" => Time.now.to_i}
+      key = "#{hostname}:123"
+
+      Sidekiq.redis do |conn|
+        conn.sadd("processes", [key])
+        conn.hmset(key, "info", Sidekiq.dump_json(pdata), "busy", 0, "beat", Time.now.to_f)
+      end
+    end
+
+    obj = Helpers.new
+
+    assert obj.sorted_processes.all? { |process| assert_instance_of Sidekiq::Process, process }
+    assert_equal ["2.1.1.1", "192.168.0.2", "192.168.0.10", "a.1", "a.2", "a.10.1", "a.10.2", "a.23", "busybee-2__34", "busybee--10_1"], obj.sorted_processes.map { |process| process["hostname"] }
   end
 end

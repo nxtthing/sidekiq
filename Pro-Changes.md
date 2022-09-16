@@ -4,7 +4,27 @@
 
 Please see [sidekiq.org](https://sidekiq.org/) for more details and how to buy.
 
-HEAD
+5.5.4
+---------
+
+- Fix batch "pending == -1" race condition [#5524]
+
+5.5.3
+---------
+
+- Remove Redis 4.8.0 deprecation warnings
+
+5.5.2
+---------
+
+- Fix overly aggressive orphan check with large Sidekiq clusters [#5435]
+
+5.5.1
+---------
+
+- Unbreak queue pausing [#5382]
+
+5.5.0
 ---------
 
 - DEPRECATION: remove support for statsd-ruby via `Sidekiq::Pro.statsd`.
@@ -20,6 +40,8 @@ end
 - Excise "worker" terminology from codebase [#4955]
 - Ensure batch callback metrics are always fired [#5217]
 - Added `error_type` tag for `job.failures` metrics [#5211]
+- Internal refactoring for Sidekiq 6.5.
+- Requires Sidekiq 6.5.
 
 5.3.1
 ---------

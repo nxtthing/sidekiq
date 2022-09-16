@@ -2,7 +2,6 @@
 
 require_relative "helper"
 require "sidekiq/web"
-require "sidekiq/util"
 require "rack/test"
 
 describe Sidekiq::Web do
@@ -63,7 +62,7 @@ describe Sidekiq::Web do
     it "can display workers" do
       Sidekiq.redis do |conn|
         conn.incr("busy")
-        conn.sadd("processes", "foo:1234")
+        conn.sadd("processes", ["foo:1234"])
         conn.hmset("foo:1234", "info", Sidekiq.dump_json("hostname" => "foo", "started_at" => Time.now.to_f, "queues" => [], "concurrency" => 10), "at", Time.now.to_f, "busy", 4)
         identity = "foo:1234:work"
         hash = {queue: "critical", payload: {"class" => WebWorker.name, "args" => [1, "abc"]}, run_at: Time.now.to_i}
@@ -142,18 +141,18 @@ describe Sidekiq::Web do
     end
 
     get "/queues/default?count=3" # direction is 'desc' by default
-    assert_match(/1005/, last_response.body)
-    refute_match(/1002/, last_response.body)
+    assert_match(/\b1005\b/, last_response.body)
+    refute_match(/\b1002\b/, last_response.body)
 
     get "/queues/default?count=3&direction=asc"
-    assert_match(/1000/, last_response.body)
-    refute_match(/1003/, last_response.body)
+    assert_match(/\b1000\b/, last_response.body)
+    refute_match(/\b1003\b/, last_response.body)
   end
 
   it "can delete a queue" do
     Sidekiq.redis do |conn|
       conn.rpush("queue:foo", "{\"args\":[],\"enqueued_at\":1567894960}")
-      conn.sadd("queues", "foo")
+      conn.sadd("queues", ["foo"])
     end
 
     get "/queues/foo"
@@ -429,7 +428,7 @@ describe Sidekiq::Web do
 
   it "escape job args and error messages" do
     # on /retries page
-    params = add_xss_retry
+    add_xss_retry
     get "/retries"
     assert_equal 200, last_response.status
     assert_match(/FailWorker/, last_response.body)
@@ -443,7 +442,7 @@ describe Sidekiq::Web do
     # on /workers page
     Sidekiq.redis do |conn|
       pro = "foo:1234"
-      conn.sadd("processes", pro)
+      conn.sadd("processes", [pro])
       conn.hmset(pro, "info", Sidekiq.dump_json("started_at" => Time.now.to_f, "labels" => ["frumduz"], "queues" => [], "concurrency" => 10), "busy", 1, "beat", Time.now.to_f)
       identity = "#{pro}:work"
       hash = {queue: "critical", payload: {"class" => "FailWorker", "args" => ["<a>hello</a>"]}, run_at: Time.now.to_i}
@@ -514,13 +513,11 @@ describe Sidekiq::Web do
   end
 
   describe "stats" do
-    include Sidekiq::Util
-
     before do
       Sidekiq.redis do |conn|
         conn.set("stat:processed", 5)
         conn.set("stat:failed", 2)
-        conn.sadd("queues", "default")
+        conn.sadd("queues", ["default"])
       end
       2.times { add_retry }
       3.times { add_scheduled }
@@ -569,14 +566,11 @@ describe Sidekiq::Web do
   end
 
   describe "stats/queues" do
-    include Sidekiq::Util
-
     before do
       Sidekiq.redis do |conn|
         conn.set("stat:processed", 5)
         conn.set("stat:failed", 2)
-        conn.sadd("queues", "default")
-        conn.sadd("queues", "queue2")
+        conn.sadd("queues", ["default", "queue2"])
       end
       2.times { add_retry }
       3.times { add_scheduled }
@@ -710,12 +704,16 @@ describe Sidekiq::Web do
     [msg, score]
   end
 
+  def hostname
+    ENV["DYNO"] || Socket.gethostname
+  end
+
   def add_worker
     key = "#{hostname}:#{$$}"
     msg = "{\"queue\":\"default\",\"payload\":{\"retry\":true,\"queue\":\"default\",\"timeout\":20,\"backtrace\":5,\"class\":\"HardWorker\",\"args\":[\"bob\",10,5],\"jid\":\"2b5ad2b016f5e063a1c62872\"},\"run_at\":1361208995}"
     Sidekiq.redis do |conn|
       conn.multi do |transaction|
-        transaction.sadd("processes", key)
+        transaction.sadd("processes", [key])
         transaction.hmset(key, "info", Sidekiq.dump_json("hostname" => "foo", "started_at" => Time.now.to_f, "queues" => []), "at", Time.now.to_f, "busy", 4)
         transaction.hmset("#{key}:work", Time.now.to_f, msg)
       end

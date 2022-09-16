@@ -71,7 +71,7 @@ module Sidekiq
     #
     def push(item)
       normed = normalize_item(item)
-      payload = middleware.invoke(normed["class"], normed, normed["queue"], @redis_pool) do
+      payload = middleware.invoke(item["class"], normed, normed["queue"], @redis_pool) do
         normed
       end
       if payload
@@ -110,7 +110,7 @@ module Sidekiq
       payloads = args.map.with_index { |job_args, index|
         copy = normed.merge("args" => job_args, "jid" => SecureRandom.hex(12))
         copy["at"] = (at.is_a?(Array) ? at[index] : at) if at
-        result = middleware.invoke(copy["class"], copy, copy["queue"], @redis_pool) do
+        result = middleware.invoke(items["class"], copy, copy["queue"], @redis_pool) do
           verify_json(copy)
           copy
         end
@@ -201,7 +201,7 @@ module Sidekiq
           conn.pipelined do |pipeline|
             atomic_push(pipeline, payloads)
           end
-        rescue Redis::BaseError => ex
+        rescue RedisConnection.adapter::BaseError => ex
           # 2550 Failover can cause the server to become a replica, need
           # to disconnect and reopen the socket to get back to the primary.
           # 4495 Use the same logic if we have a "Not enough replicas" error from the primary
@@ -220,7 +220,7 @@ module Sidekiq
 
     def atomic_push(conn, payloads)
       if payloads.first.key?("at")
-        conn.zadd("schedule", payloads.map { |hash|
+        conn.zadd("schedule", payloads.flat_map { |hash|
           at = hash.delete("at").to_s
           [at, Sidekiq.dump_json(hash)]
         })
@@ -231,7 +231,7 @@ module Sidekiq
           entry["enqueued_at"] = now
           Sidekiq.dump_json(entry)
         }
-        conn.sadd("queues", queue)
+        conn.sadd("queues", [queue])
         conn.lpush("queue:#{queue}", to_push)
       end
     end
