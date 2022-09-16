@@ -165,7 +165,7 @@ module Sidekiq
 
         _, exists, _, _, msg = redis { |conn|
           conn.multi { |transaction|
-            transaction.sadd("processes", [key])
+            transaction.sadd?("processes", [key])
             transaction.exists?(key)
             transaction.hmset(key, "info", to_json,
               "busy", curstate.size,
