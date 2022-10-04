@@ -1064,7 +1064,7 @@ module Sidekiq
         Sidekiq::BasicFetch::UnitOfWork.new("queue:#{hash['queue']}", hash["payload"])
       end
 
-      Sidekiq::BasicFetch.new(Sidekiq.options).bulk_requeue(workers, {})
+      Sidekiq::BasicFetch.new(Sidekiq).bulk_requeue(workers, {})
     end
 
     def requeue_and_clean!
