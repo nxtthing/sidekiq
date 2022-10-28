@@ -19,6 +19,8 @@ module Sidekiq
     end
 
     def redirect(location)
+      puts request.base_url
+      puts request.env.inspect
       throw :halt, [302, {"location" => "#{request.base_url}#{location}"}, []]
     end
 
