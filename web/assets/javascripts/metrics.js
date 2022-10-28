@@ -1,85 +1,54 @@
-if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  Chart.defaults.borderColor = "#333"
-  Chart.defaults.color = "#aaa"
-}
-
-class BaseChart {
-  constructor(id, options) {
-    this.ctx = document.getElementById(id);
-    this.options = options
-    this.fallbackColor = "#999";
-    this.colors = [
-      // Colors taken from https://www.chartjs.org/docs/latest/samples/utils.html
-      "#537bc4",
-      "#4dc9f6",
-      "#f67019",
-      "#f53794",
-      "#acc236",
-      "#166a8f",
-      "#00a950",
-      "#58595b",
-      "#8549ba",
-      "#991b1b",
-    ];
-
-    this.chart = new Chart(this.ctx, {
-      type: this.options.chartType,
-      data: { labels: this.options.labels, datasets: this.datasets },
-      options: this.chartOptions,
-    });
-  }
-
-  addMarksToChart() {
-    this.options.marks.forEach(([bucket, label], i) => {
-      this.chart.options.plugins.annotation.annotations[`deploy-${i}`] = {
-        type: "line",
-        xMin: bucket,
-        xMax: bucket,
-        borderColor: "rgba(220, 38, 38, 0.4)",
-        borderWidth: 2,
-      };
-    });
-  }
-}
-
 class JobMetricsOverviewChart extends BaseChart {
-  constructor(id, options) {
-    super(id, { ...options, chartType: "line" });
+  constructor(el, options) {
+    super(el, { ...options, chartType: "line" });
     this.swatches = [];
+    this.visibleKls = options.visibleKls;
 
-    this.addMarksToChart();
-    this.chart.update();
+    this.init();
+  }
+
+  get datasets() {
+    return Object.entries(this.options.series)
+      .filter(([kls, _]) => this.visibleKls.includes(kls))
+      .map(([kls, _]) => this.buildDataset(kls));
+  }
+
+  get metric() {
+    return this._metric || this.options.initialMetric;
+  }
+
+  set metric(m) {
+    this._metric = m;
   }
 
   registerSwatch(id) {
     const el = document.getElementById(id);
-    el.onchange = () => this.toggle(el.value, el.checked);
+    el.addEventListener("change", () => this.toggleKls(el.value, el.checked));
     this.swatches[el.value] = el;
-    this.updateSwatch(el.value);
+    this.updateSwatch(el.value, el.checked);
   }
 
-  updateSwatch(kls) {
+  updateSwatch(kls, checked) {
     const el = this.swatches[kls];
-    const ds = this.chart.data.datasets.find((ds) => ds.label == kls);
-    el.checked = !!ds;
-    el.style.color = ds ? ds.borderColor : null;
+    el.checked = checked;
+    el.style.color = this.colors.assignments[kls] || "";
   }
 
-  toggle(kls, visible) {
+  toggleKls(kls, visible) {
     if (visible) {
-      this.chart.data.datasets.push(this.dataset(kls));
+      this.chart.data.datasets.push(this.buildDataset(kls));
     } else {
       const i = this.chart.data.datasets.findIndex((ds) => ds.label == kls);
-      this.colors.unshift(this.chart.data.datasets[i].borderColor);
+      this.colors.checkIn(kls);
       this.chart.data.datasets.splice(i, 1);
     }
 
-    this.updateSwatch(kls);
-    this.chart.update();
+    this.updateSwatch(kls, visible);
+    this.update();
   }
 
-  dataset(kls) {
-    const color = this.colors.shift() || this.fallbackColor;
+  buildDataset(kls) {
+    const color = this.colors.checkOut(kls);
 
     return {
       label: kls,
@@ -91,40 +60,36 @@ class JobMetricsOverviewChart extends BaseChart {
     };
   }
 
-  get datasets() {
-    return Object.entries(this.options.series)
-      .filter(([kls, _]) => this.options.visible.includes(kls))
-      .map(([kls, _]) => this.dataset(kls));
-  }
-
   get chartOptions() {
     return {
+      ...super.chartOptions,
       aspectRatio: 4,
       scales: {
+        ...super.chartOptions.scales,
         y: {
+          ...super.chartOptions.scales.y,
           beginAtZero: true,
           title: {
-            text: "Total execution time (sec)",
+            text: this.options.yLabel,
             display: true,
           },
         },
       },
-      interaction: {
-        mode: "x",
-      },
       plugins: {
-        legend: {
-          display: false,
-        },
+        ...super.chartOptions.plugins,
         tooltip: {
+          ...super.chartOptions.plugins.tooltip,
           callbacks: {
             title: (items) => `${items[0].label} UTC`,
             label: (item) =>
-              `${item.dataset.label}: ${item.parsed.y.toFixed(1)} seconds`,
+              `${item.dataset.label}: ${item.parsed.y.toFixed(1)} ` +
+              `${this.options.units}`,
             footer: (items) => {
               const bucket = items[0].label;
               const marks = this.options.marks.filter(([b, _]) => b == bucket);
-              return marks.map(([b, msg]) => `Deploy: ${msg}`);
+              return marks.map(
+                ([b, msg]) => `${this.options.markLabel}: ${msg}`
+              );
             },
           },
         },
@@ -134,40 +99,49 @@ class JobMetricsOverviewChart extends BaseChart {
 }
 
 class HistTotalsChart extends BaseChart {
-  constructor(id, options) {
-    super(id, { ...options, chartType: "bar" });
+  constructor(el, options) {
+    super(el, { ...options, chartType: "bar" });
+    this.init();
   }
 
   get datasets() {
-    return [{
-      data: this.options.series,
-      backgroundColor: this.colors[0],
-      borderWidth: 0,
-    }];
+    return [
+      {
+        data: this.options.series,
+        backgroundColor: this.colors.primary,
+        borderWidth: 0,
+      },
+    ];
   }
 
   get chartOptions() {
     return {
+      ...super.chartOptions,
       aspectRatio: 6,
       scales: {
+        ...super.chartOptions.scales,
         y: {
+          ...super.chartOptions.scales.y,
           beginAtZero: true,
           title: {
-            text: "Total jobs",
+            text: this.options.yLabel,
+            display: true,
+          },
+        },
+        x: {
+          ...super.chartOptions.scales.x,
+          title: {
+            text: this.options.xLabel,
             display: true,
           },
         },
       },
-      interaction: {
-        mode: "x",
-      },
       plugins: {
-        legend: {
-          display: false,
-        },
+        ...super.chartOptions.plugins,
         tooltip: {
+          ...super.chartOptions.plugins.tooltip,
           callbacks: {
-            label: (item) => `${item.parsed.y} jobs`,
+            label: (item) => `${item.parsed.y} ${this.options.units}`,
           },
         },
       },
@@ -176,11 +150,9 @@ class HistTotalsChart extends BaseChart {
 }
 
 class HistBubbleChart extends BaseChart {
-  constructor(id, options) {
-    super(id, { ...options, chartType: "bubble" });
-
-    this.addMarksToChart();
-    this.chart.update();
+  constructor(el, options) {
+    super(el, { ...options, chartType: "bubble" });
+    this.init();
   }
 
   get datasets() {
@@ -190,13 +162,13 @@ class HistBubbleChart extends BaseChart {
     Object.entries(this.options.hist).forEach(([bucket, hist]) => {
       hist.forEach((count, histBucket) => {
         if (count > 0) {
+          // histogram data is ordered fastest to slowest, but this.histIntervals is
+          // slowest to fastest (so it displays correctly on the chart).
+          const index = this.options.histIntervals.length - 1 - histBucket;
+
           data.push({
             x: bucket,
-            // histogram data is ordered fastest to slowest, but this.histIntervals is
-            // slowest to fastest (so it displays correctly on the chart).
-            y:
-              this.options.histIntervals[this.options.histIntervals.length - 1 - histBucket] /
-              1000,
+            y: this.options.histIntervals[index] / 1000,
             count: count,
           });
 
@@ -206,53 +178,55 @@ class HistBubbleChart extends BaseChart {
     });
 
     // Chart.js will not calculate the bubble size. We have to do that.
-    const maxRadius = this.ctx.offsetWidth / this.options.labels.length;
-    const minRadius = 1
+    const maxRadius = this.el.offsetWidth / this.options.labels.length;
+    const minRadius = 1;
     const multiplier = (maxRadius / maxCount) * 1.5;
     data.forEach((entry) => {
       entry.r = entry.count * multiplier + minRadius;
     });
 
-    return [{
-      data: data,
-      backgroundColor: "#537bc4",
-      borderColor: "#537bc4",
-    }];
+    return [
+      {
+        data: data,
+        backgroundColor: this.colors.primary,
+        borderColor: this.colors.primary,
+      },
+    ];
   }
 
   get chartOptions() {
     return {
+      ...super.chartOptions,
       aspectRatio: 3,
       scales: {
+        ...super.chartOptions.scales,
         x: {
+          ...super.chartOptions.scales.x,
           type: "category",
           labels: this.options.labels,
         },
         y: {
+          ...super.chartOptions.scales.y,
           title: {
-            text: "Execution time (sec)",
+            text: this.options.yLabel,
             display: true,
           },
         },
       },
-      interaction: {
-        mode: "x",
-      },
       plugins: {
-        legend: {
-          display: false,
-        },
+        ...super.chartOptions.plugins,
         tooltip: {
+          ...super.chartOptions.plugins.tooltip,
           callbacks: {
             title: (items) => `${items[0].raw.x} UTC`,
             label: (item) =>
-              `${item.parsed.y} seconds: ${item.raw.count} job${
-                item.raw.count == 1 ? "" : "s"
-              }`,
+              `${item.parsed.y} ${this.options.yUnits}: ${item.raw.count} ${this.options.zUnits}`,
             footer: (items) => {
               const bucket = items[0].raw.x;
               const marks = this.options.marks.filter(([b, _]) => b == bucket);
-              return marks.map(([b, msg]) => `Deploy: ${msg}`);
+              return marks.map(
+                ([b, msg]) => `${this.options.markLabel}: ${msg}`
+              );
             },
           },
         },

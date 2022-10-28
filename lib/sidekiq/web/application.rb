@@ -75,6 +75,9 @@ module Sidekiq
     end
 
     get "/busy" do
+      @count = (params["count"] || 100).to_i
+      (@current_page, @total_size, @workset) = page_items(workset, params["page"], @count)
+
       erb(:busy)
     end
 
@@ -311,7 +314,7 @@ module Sidekiq
     end
 
     get "/stats/queues" do
-      json Sidekiq::Stats::Queues.new.lengths
+      json Sidekiq::Stats.new.queues
     end
 
     def call(env)

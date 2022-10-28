@@ -4,6 +4,20 @@
 
 Please see [sidekiq.org](https://sidekiq.org) for more details and how to buy.
 
+7.0.0
+---------
+
+- Componentize and capsulize Enterprise functionality for Sidekiq 7
+- Remove bucket history graph from Web UI
+- Rename "Cron" tab to "Periodic" [#5590]
+- Add DE locale
+
+2.5.3
+---------
+
+- Adjust rate limiters to lazy initialize, avoiding connection issues
+when forking preloaded app code [#5535]
+
 2.5.2
 ---------
 
@@ -110,8 +124,7 @@ sidekiq.latency.#{name} -> sidekiq.queue.latency with tag queue:#{name}
 2.0.0
 -------------
 
-- Except for the [newly required credentials](https://github.com/mperham/sidekiq/issues/4232), Sidekiq Enterprise 2.0 does
-  not have any significant migration steps.
+- Except for the [newly required credentials](https://github.com/mperham/sidekiq/issues/4232), Sidekiq Enterprise 2.0 does not have any significant migration steps.
 - Sidekiq Enterprise must now be started with valid license credentials. [#4232]
 - Call `GC.compact` if possible in sidekiqswarm before forking [#4181]
 - Changes for forward-compatibility with Sidekiq 6.0.

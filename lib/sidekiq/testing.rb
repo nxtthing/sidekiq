@@ -51,18 +51,9 @@ module Sidekiq
       end
 
       def server_middleware
-        @server_chain ||= Middleware::Chain.new
+        @server_chain ||= Middleware::Chain.new(Sidekiq.default_configuration)
         yield @server_chain if block_given?
         @server_chain
-      end
-
-      def constantize(str)
-        names = str.split("::")
-        names.shift if names.empty? || names.first.empty?
-
-        names.inject(Object) do |constant, name|
-          constant.const_defined?(name) ? constant.const_get(name) : constant.const_missing(name)
-        end
       end
     end
   end
@@ -83,7 +74,7 @@ module Sidekiq
         true
       elsif Sidekiq::Testing.inline?
         payloads.each do |job|
-          klass = Sidekiq::Testing.constantize(job["class"])
+          klass = Object.const_get(job["class"])
           job["id"] ||= SecureRandom.hex(12)
           job_hash = Sidekiq.load_json(Sidekiq.dump_json(job))
           klass.process_job(job_hash)
@@ -218,25 +209,9 @@ module Sidekiq
     #   assert_equal 1, HardJob.jobs.size
     #   assert_equal :something, HardJob.jobs[0]['args'][0]
     #
-    #   assert_equal 0, Sidekiq::Extensions::DelayedMailer.jobs.size
-    #   MyMailer.delay.send_welcome_email('foo@example.com')
-    #   assert_equal 1, Sidekiq::Extensions::DelayedMailer.jobs.size
-    #
     # You can also clear and drain all job types:
     #
-    #   assert_equal 0, Sidekiq::Extensions::DelayedMailer.jobs.size
-    #   assert_equal 0, Sidekiq::Extensions::DelayedModel.jobs.size
-    #
-    #   MyMailer.delay.send_welcome_email('foo@example.com')
-    #   MyModel.delay.do_something_hard
-    #
-    #   assert_equal 1, Sidekiq::Extensions::DelayedMailer.jobs.size
-    #   assert_equal 1, Sidekiq::Extensions::DelayedModel.jobs.size
-    #
-    #   Sidekiq::Worker.clear_all # or .drain_all
-    #
-    #   assert_equal 0, Sidekiq::Extensions::DelayedMailer.jobs.size
-    #   assert_equal 0, Sidekiq::Extensions::DelayedModel.jobs.size
+    #   Sidekiq::Job.clear_all # or .drain_all
     #
     # This can be useful to make sure jobs don't linger between tests:
     #
@@ -318,7 +293,7 @@ module Sidekiq
           job_classes = jobs.map { |job| job["class"] }.uniq
 
           job_classes.each do |job_class|
-            Sidekiq::Testing.constantize(job_class).drain
+            Object.const_get(job_class).drain
           end
         end
       end
@@ -329,13 +304,10 @@ module Sidekiq
     def jobs_for(klass)
       jobs.select do |job|
         marshalled = job["args"][0]
-        marshalled.index(klass.to_s) && YAML.load(marshalled)[0] == klass
+        marshalled.index(klass.to_s) && YAML.safe_load(marshalled)[0] == klass
       end
     end
   end
-
-  Sidekiq::Extensions::DelayedMailer.extend(TestingExtensions) if defined?(Sidekiq::Extensions::DelayedMailer)
-  Sidekiq::Extensions::DelayedModel.extend(TestingExtensions) if defined?(Sidekiq::Extensions::DelayedModel)
 end
 
 if defined?(::Rails) && Rails.respond_to?(:env) && !Rails.env.test? && !$TESTING

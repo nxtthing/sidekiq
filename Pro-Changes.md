@@ -4,6 +4,18 @@
 
 Please see [sidekiq.org](https://sidekiq.org/) for more details and how to buy.
 
+7.0.0
+---------
+
+- Componentize and capsulize Pro functionality for Sidekiq 7.
+- Add DE locale
+
+5.5.5
+---------
+
+- Lock Sidekiq Pro 5.x to Sidekiq 6.x.
+- Update IT localization
+
 5.5.4
 ---------
 
@@ -133,7 +145,7 @@ job.WorkerName.failure -> job.failure with tag worker:WorkerName
 
 - There is no significant migration from Sidekiq Pro 4.0 to 5.0
   but make sure you read the [update notes for Sidekiq
-6.0](https://github.com/mperham/sidekiq/blob/master/6.0-Upgrade.md).
+6.0](https://github.com/mperham/sidekiq/blob/master/docs/6.0-Upgrade.md).
 - Removed various deprecated APIs and associated warnings.
 - **BREAKING CHANGE** Remove the `Sidekiq::Batch::Status#dead_jobs` API in favor of
   `Sidekiq::Batch::Status#dead_jids`. [#4217]
@@ -183,7 +195,7 @@ batch.on(:death, ...)
 4.0.0
 ---------
 
-- See the [Sidekiq Pro 4.0](Pro-4.0-Upgrade.md) release notes.
+- See the [Sidekiq Pro 4.0](docs/Pro-4.0-Upgrade.md) release notes.
 
 
 3.7.1
@@ -428,7 +440,7 @@ end
 3.0.0
 -----------
 
-- See the [Pro 3.0 release notes](Pro-3.0-Upgrade.md).
+- See the [Pro 3.0 release notes](docs/Pro-3.0-Upgrade.md).
 
 2.1.3
 -----------
@@ -522,7 +534,7 @@ mount Sidekiq::Pro::Web.with(redis_pool: POOL2), at: '/sidekiq2', as: 'sidekiq2'
 2.0.0
 -----------
 
-- See [the Upgrade Notes](Pro-2.0-Upgrade.md) for detailed notes.
+- See [the Upgrade Notes](docs/Pro-2.0-Upgrade.md) for detailed notes.
 
 1.9.2
 -----------

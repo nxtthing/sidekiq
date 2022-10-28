@@ -9,10 +9,10 @@ Gem::Specification.new do |gem|
   gem.license = "LGPL-3.0"
 
   gem.executables = ["sidekiq", "sidekiqmon"]
-  gem.files = ["sidekiq.gemspec", "README.md", "Changes.md", "LICENSE"] + `git ls-files | grep -E '^(bin|lib|web)'`.split("\n")
+  gem.files = %w[sidekiq.gemspec README.md Changes.md LICENSE.txt] + `git ls-files | grep -E '^(bin|lib|web)'`.split("\n")
   gem.name = "sidekiq"
   gem.version = Sidekiq::VERSION
-  gem.required_ruby_version = ">= 2.5.0"
+  gem.required_ruby_version = ">= 2.7.0"
 
   gem.metadata = {
     "homepage_uri" => "https://sidekiq.org",
@@ -22,7 +22,29 @@ Gem::Specification.new do |gem|
     "source_code_uri" => "https://github.com/mperham/sidekiq"
   }
 
-  gem.add_dependency "redis", "<5", ">= 4.5.0"
-  gem.add_dependency "connection_pool", ">= 2.2.5"
-  gem.add_dependency "rack", "~> 2.0"
+  gem.add_dependency "redis-client", ">= 0.9.0"
+  gem.add_dependency "connection_pool", ">= 2.3.0"
+  gem.add_dependency "rack", ">= 2.2.4"
+  gem.add_dependency "concurrent-ruby", "< 2"
+  gem.post_install_message = <<~EOM
+    
+    ####################################################
+    
+    
+      █████████  █████ ██████████   ██████████ █████   ████ █████    ██████       ██████████       █████
+     ███░░░░░███░░███ ░░███░░░░███ ░░███░░░░░█░░███   ███░ ░░███   ███░░░░███    ░███░░░░███     ███░░░███
+    ░███    ░░░  ░███  ░███   ░░███ ░███  █ ░  ░███  ███    ░███  ███    ░░███   ░░░    ███     ███   ░░███
+    ░░█████████  ░███  ░███    ░███ ░██████    ░███████     ░███ ░███     ░███         ███     ░███    ░███
+     ░░░░░░░░███ ░███  ░███    ░███ ░███░░█    ░███░░███    ░███ ░███   ██░███        ███      ░███    ░███
+     ███    ░███ ░███  ░███    ███  ░███ ░   █ ░███ ░░███   ░███ ░░███ ░░████        ███       ░░███   ███
+    ░░█████████  █████ ██████████   ██████████ █████ ░░████ █████ ░░░██████░██      ███      ██ ░░░█████░
+     ░░░░░░░░░  ░░░░░ ░░░░░░░░░░   ░░░░░░░░░░ ░░░░░   ░░░░ ░░░░░    ░░░░░░ ░░      ░░░      ░░    ░░░░░░
+    
+    
+    1. Use `gem 'sidekiq', '<7'` in your Gemfile if you don't want this new version.
+    2. Read the release notes at https://github.com/mperham/sidekiq/blob/main/docs/7.0-Upgrade.md
+    3. Search for open/closed issues at https://github.com/mperham/sidekiq/issues/
+    
+    ####################################################
+  EOM
 end

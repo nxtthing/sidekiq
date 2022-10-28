@@ -2,7 +2,8 @@ require "concurrent"
 
 module Sidekiq
   module Metrics
-    # TODO Support apps without concurrent-ruby
+    # This is the only dependency on concurrent-ruby in Sidekiq but it's
+    # mandatory for thread-safety until MRI supports atomic operations on values.
     Counter = ::Concurrent::AtomicFixnum
 
     # Implements space-efficient but statistically useful histogram storage.
@@ -38,7 +39,6 @@ module Sidekiq
         "65s", "100s", "150s", "225s", "335s",
         "Slow"
       ]
-
       FETCH = "GET u16 #0 GET u16 #1 GET u16 #2 GET u16 #3 \
         GET u16 #4 GET u16 #5 GET u16 #6 GET u16 #7 \
         GET u16 #8 GET u16 #9 GET u16 #10 GET u16 #11 \
@@ -46,6 +46,7 @@ module Sidekiq
         GET u16 #16 GET u16 #17 GET u16 #18 GET u16 #19 \
         GET u16 #20 GET u16 #21 GET u16 #22 GET u16 #23 \
         GET u16 #24 GET u16 #25".split
+      HISTOGRAM_TTL = 8 * 60 * 60
 
       def each
         buckets.each { |counter| yield counter.value }
@@ -86,7 +87,7 @@ module Sidekiq
         end
 
         conn.bitfield(*cmd) if cmd.size > 3
-        conn.expire(key, 86400)
+        conn.expire(key, HISTOGRAM_TTL)
         key
       end
     end

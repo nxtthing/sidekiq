@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require "connection_pool"
 require "redis_client"
 require "redis_client/decorator"
-require "uri"
 
 module Sidekiq
   class RedisClientAdapter
@@ -19,29 +17,10 @@ module Sidekiq
         @client.call("EVALSHA", sha, keys.size, *keys, *argv)
       end
 
-      def brpoplpush(*args)
-        @client.blocking_call(false, "BRPOPLPUSH", *args)
-      end
-
-      def brpop(*args)
-        @client.blocking_call(false, "BRPOP", *args)
-      end
-
-      def set(*args)
-        @client.call("SET", *args) { |r| r == "OK" }
-      end
-      ruby2_keywords :set if respond_to?(:ruby2_keywords, true)
-
-      def sismember(*args)
-        @client.call("SISMEMBER", *args) { |c| c > 0 }
-      end
-
-      def exists?(key)
-        @client.call("EXISTS", key) { |c| c > 0 }
-      end
-
       private
 
+      # this allows us to use methods like `conn.hmset(...)` instead of having to use
+      # redis-client's native `conn.call("hmset", ...)`
       def method_missing(*args, &block)
         @client.call(*args, *block)
       end
@@ -55,25 +34,13 @@ module Sidekiq
     CompatClient = RedisClient::Decorator.create(CompatMethods)
 
     class CompatClient
-      %i[scan sscan zscan hscan].each do |method|
-        alias_method :"#{method}_each", method
-        undef_method method
-      end
-
-      def disconnect!
-        @client.close
-      end
-
-      def connection
-        {id: @client.id}
-      end
-
-      def redis
-        self
-      end
-
+      # underscore methods are not official API
       def _client
         @client
+      end
+
+      def _config
+        @client.config
       end
 
       def message
@@ -118,9 +85,8 @@ module Sidekiq
       opts = options.dup
 
       if opts[:namespace]
-        Sidekiq.logger.error("Your Redis configuration uses the namespace '#{opts[:namespace]}' but this feature isn't supported by redis-client. " \
-          "Either use the redis adapter or remove the namespace.")
-        Kernel.exit(-127)
+        raise ArgumentError, "Your Redis configuration uses the namespace '#{opts[:namespace]}' but this feature isn't supported by redis-client. " \
+          "Either use the redis adapter or remove the namespace."
       end
 
       opts.delete(:size)
@@ -150,5 +116,3 @@ module Sidekiq
     end
   end
 end
-
-Sidekiq::RedisConnection.adapter = Sidekiq::RedisClientAdapter
