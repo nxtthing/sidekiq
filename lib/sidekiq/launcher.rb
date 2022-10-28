@@ -154,7 +154,7 @@ module Sidekiq
             curstate.each_pair do |tid, hash|
               transaction.hset(work_key, tid, Sidekiq.dump_json(hash))
             end
-            transaction.expire(work_key, 60)
+            transaction.expire(work_key, ENV["SIDEKIQ_HEARTBEAT_STATS_EXPIRATION_IN_SECONDS"] || 60)
           end
         end
 
@@ -165,7 +165,7 @@ module Sidekiq
 
         _, exists, _, _, msg = redis { |conn|
           conn.multi { |transaction|
-            transaction.sadd("processes", [key])
+            transaction.sadd?("processes", [key])
             transaction.exists?(key)
             transaction.hmset(key, "info", to_json,
               "busy", curstate.size,
@@ -173,7 +173,7 @@ module Sidekiq
               "rtt_us", rtt,
               "quiet", @done.to_s,
               "rss", kb)
-            transaction.expire(key, 60)
+            transaction.expire(key, ENV["SIDEKIQ_HEARTBEAT_STATS_EXPIRATION_IN_SECONDS"] || 60)
             transaction.rpop("#{key}-signals")
           }
         }
