@@ -1044,6 +1044,34 @@ module Sidekiq
       signal("TSTP")
     end
 
+    def clean!
+      Sidekiq.redis do |c|
+        c.multi do |transaction|
+          transaction.del(identity)
+          transaction.del("#{identity}:workers")
+        end
+      end
+      ProcessSet.new(false).cleanup
+    end
+
+    def requeue!
+      workers = Sidekiq.redis do |c|
+        c.multi do |transaction|
+          transaction.hgetall("#{identity}:work")
+        end
+      end.map(&:values).flatten.map do |json|
+        hash = JSON.parse(json)
+        Sidekiq::BasicFetch::UnitOfWork.new("queue:#{hash['queue']}", hash["payload"])
+      end
+
+      Sidekiq::BasicFetch.new(Sidekiq).bulk_requeue(workers, {})
+    end
+
+    def requeue_and_clean!
+      requeue!
+      clean!
+    end
+
     # Signal this process to shutdown.
     # It will shutdown within its configured :timeout value, default 25 seconds.
     # This method is *asynchronous* and it can take 5-10
